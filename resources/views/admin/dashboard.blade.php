@@ -53,7 +53,7 @@
                 Bibliora Smart System
             </span>
             <h2 class="fw-bold text-white mb-2" style="letter-spacing: -0.5px;">
-                Welcome back, Administrator 👋
+                Welcome back, Administrator 
             </h2>
             <p class="text-light opacity-75 mb-4" style="max-width: 600px; font-size: 10pt; line-height: 1.6;">
                 Monitor library analytics, circulation activity, member engagement, and system performance in real-time.
