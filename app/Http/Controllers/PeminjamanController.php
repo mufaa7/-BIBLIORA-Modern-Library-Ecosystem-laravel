@@ -13,33 +13,30 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class PeminjamanController extends Controller
 {
-    // 1. Menampilkan semua riwayat transaksi peminjaman (Kebutuhan Fungsional)
+    // 1. Menampilkan semua riwayat transaksi peminjaman
     public function index()
     {
         $peminjamans = Peminjaman::with(['user', 'details.buku'])->latest()->get();
         return view('admin.peminjaman.index', compact('peminjamans'));
     }
 
-    // 2. PROSES MENCATAT PEMINJAMAN MULTI-BUKU + VALIDASI KUOTA MAKSIMAL SERVER-SIDE + BLACKLIST OVERDUE
+    // 2. PROSES MENCATAT PEMINJAMAN LANGSUNG VIA ADMIN (OFFLINE)
     public function store(Request $request)
     {
-        // Validasi input: id_buku dan jumlah WAJIB berbentuk array
         $request->validate([
             'id_user'   => 'required|exists:users,id_user',
-            'id_buku'   => 'required|array|min:1|max:3', // Minimal 1 buku, maksimal 3 buku dalam satu form
+            'id_buku'   => 'required|array|min:1|max:3', 
             'id_buku.*' => 'required|exists:bukus,id_buku', 
             'jumlah'    => 'required|array',
             'jumlah.*'  => 'required|integer|min:1',
             'durasi'    => 'required|integer|in:1,3,7',
         ]);
 
-        // Proteksi tambahan: Cek apakah ada input ID buku yang duplikat dalam satu form
         if (count($request->id_buku) !== count(array_unique($request->id_buku))) {
             return redirect()->back()->with('error', 'Gagal! Ada judul buku yang duplikat dalam form input.')->withInput();
         }
 
-        // ==================== PROTEKSI 1: AUTOMATIC BLACKLIST CHECK ====================
-        // Blokir transaksi jika user punya buku yang masih dipinjam dan MELEWATI jatuh tempo hari ini
+        // PROTEKSI 1: AUTOMATIC BLACKLIST CHECK
         $punyaTunggakanOverdue = Peminjaman::where('id_user', $request->id_user)
             ->where('status_peminjaman', 'dipinjam')
             ->where('jatuh_tempo', '<', Carbon::today()->toDateString())
@@ -51,28 +48,24 @@ class PeminjamanController extends Controller
                 ->withInput();
         }
 
-        // ==================== PROTEKSI 2: VALIDASI KUOTA OPSI 3 ====================
-        // Hitung total buku yang belum dikembalikan oleh user ini di database
+        // PROTEKSI 2: VALIDASI KUOTA MAKSIMAL 3 BUKU (Termasuk yang berstatus booking)
         $bukuSedangDipinjam = DetailPeminjaman::whereHas('peminjaman', function($query) use ($request) {
             $query->where('id_user', $request->id_user)
-                  ->where('status_peminjaman', 'dipinjam');
+                  ->whereIn('status_peminjaman', ['dipinjam', 'booking']);
         })->sum('jumlah');
 
         $bukuBaruAkanDipinjam = array_sum($request->jumlah);
 
-        // Jika total pinjaman lama + baru melebihi 3, batalkan transaksi
         if (($bukuSedangDipinjam + $bukuBaruAkanDipinjam) > 3) {
             $sisaKuota = 3 - $bukuSedangDipinjam;
-            return redirect()->back()->with('error', "Transaksi Ditolak! Anggota ini sudah mengantongi {$bukuSedangDipinjam} buku yang belum dikembalikan. Sisa batas kuota pinjam saat ini: {$sisaKuota} buku.") ->withInput();
+            return redirect()->back()->with('error', "Transaksi Ditolak! Anggota ini sudah mengantongi {$bukuSedangDipinjam} buku di sistem. Sisa batas kuota pinjam saat ini: {$sisaKuota} buku.") ->withInput();
         }
-        // ===========================================================================
 
         try {
             DB::transaction(function () use ($request) {
                 $tanggalPinjam = Carbon::now()->toDateString();
                 $jatuhTempo = Carbon::now()->addDays($request->durasi)->toDateString();
 
-                // A. Simpan ke Tabel Induk (Master Peminjaman)
                 $peminjaman = Peminjaman::create([
                     'id_user'           => $request->id_user,
                     'tanggal_pinjam'    => $tanggalPinjam,
@@ -81,19 +74,14 @@ class PeminjamanController extends Controller
                     'denda'             => 0
                 ]);
 
-                // B. Perulangan untuk menyimpan setiap buku ke Tabel Detail
                 foreach ($request->id_buku as $index => $id_buku) {
                     $qtyRequired = $request->jumlah[$index];
-
-                    // Kunci baris data buku untuk menghindari race condition stok
                     $buku = Buku::lockForUpdate()->findOrFail($id_buku);
                     
-                    // Validasi kecukupan stok fisik di database
                     if ($buku->jumlah < $qtyRequired) {
                         throw new \Exception("Stok buku '{$buku->judul}' tidak mencukupi atau habis! (Sisa stok: {$buku->jumlah})");
                     }
 
-                    // Simpan data ke tabel relasi detail
                     DetailPeminjaman::create([
                         'id_peminjaman' => $peminjaman->id_peminjaman,
                         'id_buku'       => $buku->id_buku,
@@ -101,7 +89,6 @@ class PeminjamanController extends Controller
                         'sub_total'     => null
                     ]);
 
-                    // Potong stok buku secara otomatis
                     $buku->decrement('jumlah', $qtyRequired);
                 }
             });
@@ -113,7 +100,44 @@ class PeminjamanController extends Controller
         }
     }
 
-    // 3. Proses Pengembalian Seluruh Buku + Hitung Denda Otomatis (FIXED LOGIC)
+    // =========================================================================
+    // INTERACTION ENGINE: Validasi Pengubahan Status Pre-Order Booking Menjadi Pinjam (FIXED DINAMIS)
+    // =========================================================================
+    public function konfirmasiBooking(Request $request, $id)
+    {
+        // 1. Validasi input durasi yang dikirimkan oleh admin via dropdown baris tabel
+        $request->validate([
+            'durasi' => 'required|integer|in:1,3,7'
+        ]);
+
+        $peminjaman = Peminjaman::findOrFail($id);
+
+        if ($peminjaman->status_peminjaman !== 'booking') {
+            return redirect()->back()->with('error', 'Transaksi ini bukan berstatus booking.');
+        }
+
+        try {
+            DB::transaction(function () use ($peminjaman, $request) {
+                // 2. HITUNG VALUASI TANGGAL SECARA DINAMIS SESUAI REQUEST INPUT ADMIN
+                $tanggalPinjamHariIni = Carbon::today()->toDateString();
+                $jatuhTempoDinamis    = Carbon::today()->addDays($request->durasi)->toDateString();
+
+                // Ubah status dari 'booking' ke 'dipinjam' dan tiban timeline penanggalannya
+                $peminjaman->update([
+                    'tanggal_pinjam'    => $tanggalPinjamHariIni,
+                    'jatuh_tempo'       => $jatuhTempoDinamis,
+                    'status_peminjaman' => 'dipinjam'
+                ]);
+            });
+
+            return redirect()->route('peminjaman.index')->with('success', 'Booking berhasil divalidasi! Masa pinjam ' . $request->durasi . ' hari resmi berjalan.');
+
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Gagal memproses konfirmasi booking: ' . $e->getMessage());
+        }
+    }
+
+    // 3. Proses Pengembalian Seluruh Buku + Hitung Denda Otomatis
     public function kembalikan($id)
     {
         $peminjaman = Peminjaman::with('details')->findOrFail($id);
@@ -124,28 +148,26 @@ class PeminjamanController extends Controller
 
         try {
             DB::transaction(function () use ($peminjaman) {
-                // PERBAIKAN: Paksa perbandingan murni tanggal (00:00:00) agar selisih hari valid
                 $tanggalKembali = Carbon::today();
                 $jatuhTempo     = Carbon::parse($peminjaman->jatuh_tempo)->startOfDay();
                 $totalDenda     = 0;
 
-                // Hitung denda jika tanggal kembali melewati batas jatuh tempo
+                $totalBukuDipinjam = $peminjaman->details->sum('jumlah');
+
                 if ($tanggalKembali->gt($jatuhTempo)) {
                     $selisihHari = $tanggalKembali->diffInDays($jatuhTempo);
-                    $totalDenda  = $selisihHari * 1000; // Tarif denda Rp 1.000,- per hari
+                    $totalDenda  = $selisihHari * 1000 * $totalBukuDipinjam; 
                 }
 
-                // Update status data induk peminjaman
                 $peminjaman->update([
                     'tanggal_kembali'   => $tanggalKembali->toDateString(),
                     'status_peminjaman' => 'kembali',
                     'denda'             => $totalDenda
                 ]);
 
-                // Mengembalikan semua stok buku yang ada di dalam detail transaksi ini
                 foreach ($peminjaman->details as $detail) {
                     $buku = Buku::lockForUpdate()->findOrFail($detail->id_buku);
-                    $buku->increment('jumlah', $detail->jumlah); // Stok bertambah kembali
+                    $buku->increment('jumlah', $detail->jumlah); 
                 }
             });
 
@@ -156,7 +178,7 @@ class PeminjamanController extends Controller
         }
     }
 
-    // 4. Fitur Cetak Bukti Peminjaman Buku Berupa Dokumen PDF (Output Dokumen Sistem)
+    // 4. Fitur Cetak Bukti Peminjaman Buku Berupa Dokumen PDF
     public function cetak($id)
     {
         $peminjaman = Peminjaman::with(['user', 'details.buku'])->findOrFail($id);
@@ -167,8 +189,6 @@ class PeminjamanController extends Controller
         return $pdf->stream('Bukti_Peminjaman_TRX_' . $peminjaman->id_peminjaman . '.pdf');
     }
 
-    // ==================== MODUL FILTRASI LAPORAN OPSI 1 ====================
-    
     // 5. Menampilkan halaman filter rentang tanggal laporan
     public function halamanLaporan()
     {
@@ -186,24 +206,20 @@ class PeminjamanController extends Controller
         $tgl_awal = $request->tgl_awal;
         $tgl_akhir = $request->tgl_akhir;
 
-        // Tarik data manifes transaksi yang masuk di dalam rentang periode kalender
         $laporans = Peminjaman::with(['user', 'details.buku'])
                     ->whereBetween('tanggal_pinjam', [$tgl_awal, $tgl_akhir])
                     ->oldest()
                     ->get();
 
-        // Akumulasi kalkulasi total kas denda yang terkumpul pada periode tersebut
         $totalDendaPeriode = $laporans->sum('denda');
 
         $pdf = Pdf::loadView('admin.laporan.cetak_pdf', compact('laporans', 'tgl_awal', 'tgl_akhir', 'totalDendaPeriode'))
-                  ->setPaper('a4', 'landscape'); // Format landscape agar kolom data muat lebar ke samping
+                  ->setPaper('a4', 'landscape'); 
 
         return $pdf->stream("Laporan_Sirkulasi_{$tgl_awal}_to_{$tgl_akhir}.pdf");
     }
 
-    // ==================== MODUL PEMBAYARAN KAS DENDA OPSI 2 ====================
-
-    // 7. Mengubah nominal denda menjadi 0 (Tanda Lunas Fisik) setelah menerima uang tunai
+    // 7. Melunasi denda tanpa menghapus riwayat kas keuangan
     public function bayarDenda($id)
     {
         $peminjaman = Peminjaman::findOrFail($id);
@@ -215,7 +231,7 @@ class PeminjamanController extends Controller
         try {
             DB::transaction(function () use ($peminjaman) {
                 $peminjaman->update([
-                    'denda' => 0
+                    'status_peminjaman' => 'lunas'
                 ]);
             });
 

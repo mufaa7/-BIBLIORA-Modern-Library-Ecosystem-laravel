@@ -18,7 +18,8 @@ class Peminjaman extends Model
         'tanggal_kembali', 
         'jatuh_tempo', 
         'status_peminjaman', 
-        'denda'
+        'denda',
+        'jumlah_perpanjangan',
     ];
 
     // Relasi: Peminjaman ini dilakukan oleh satu User/Anggota

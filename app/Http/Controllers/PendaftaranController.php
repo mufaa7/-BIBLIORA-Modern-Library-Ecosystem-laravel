@@ -5,19 +5,19 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage; // WAJIB DIIMPORT UNTUK URUSAN MANAGED STORAGE
+use Illuminate\Support\Facades\Storage; // REQUIRED FOR MANAGED STORAGE OPERATIONS
 
 class PendaftaranController extends Controller
 {
-    // Menampilkan halaman form pendaftaran
+    // Display the registration form and members list
     public function index()
     {
-        // Ambil daftar member yang sudah mendaftar untuk ditampilkan di tabel rekap
+        // Fetch all members with 'user' role ordered by latest id_user
         $members = User::where('role', 'user')->orderBy('id_user', 'DESC')->get();
         return view('admin.pendaftaran.index', compact('members'));
     }
 
-    // Memproses simpan data member baru + Validasi Unggah Foto Profil
+    // Process new member registration + profile picture validation
     public function store(Request $request)
     {
         $request->validate([
@@ -27,13 +27,12 @@ class PendaftaranController extends Controller
             'password' => 'required|string|min:6',
             'no_telp' => 'required|string|max:15',
             'alamat' => 'required|string',
-            'foto_profil' => 'nullable|image|mimes:jpeg,png,jpg|max:2048', // Tambahkan validasi foto opsional (Max 2MB)
+            'foto_profil' => 'nullable|image|mimes:jpeg,png,jpg|max:2048', // Optional image, max 2MB
         ]);
 
-        // Inisialisasi variabel path foto sebagai null bawaan
         $photoPath = null;
 
-        // Jika admin menyertakan berkas foto saat pendaftaran, eksekusi penyimpanan
+        // If file exists, store it securely inside public/avatars
         if ($request->hasFile('foto_profil')) {
             $photoPath = $request->file('foto_profil')->store('avatars', 'public');
         }
@@ -47,44 +46,44 @@ class PendaftaranController extends Controller
             'alamat' => $request->alamat,
             'role' => 'user',          
             'status_aktif' => 1, 
-            'foto_profil' => $photoPath, // Simpan path gambar ke kolom database lu
+            'foto_profil' => $photoPath,
         ]);
 
-        return redirect()->route('pendaftaran.index')->with('success', 'Anggota baru berhasil didaftarkan!');
+        // English success message synced with Blade Alert
+        return redirect()->route('pendaftaran.index')->with('success', 'New library member has been successfully registered!');
     }
 
-    // ==================== INJEKSI FITUR ENTERPRISE: UPDATE FOTO VIA TABEL RESMI ====================
-    // Memproses upload foto langsung dari baris tabel member tanpa merusak UI dashboard
+    // Process dynamic photo upload from table row without ruining dashboard state
     public function updateAvatarByAdmin(Request $request)
     {
         $request->validate([
             'id_user' => 'required',
-            'foto_profil' => 'required|image|mimes:jpeg,png,jpg|max:2048', // Wajib berupa berkas gambar valid
+            'foto_profil' => 'required|image|mimes:jpeg,png,jpg|max:2048', // Must be a valid image
         ]);
 
-        // Cari data member berdasarkan ID yang dilempar JavaScript dari baris tabel
-        $user = User::findOrFail($request->id_user);
+        // FIXED BLIND SPOT: Explicitly search by your custom primary key 'id_user' to prevent crashes
+        $user = User::where('id_user', $request->id_user)->firstOrFail();
 
-        // Antisipasi file sampah: Jika member sudah punya foto lama, bersihkan dari piringan storage server
+        // Anti-garbage file system: Delete old photo from storage disk if exists
         if ($user->foto_profil && Storage::disk('public')->exists($user->foto_profil)) {
             Storage::disk('public')->delete($user->foto_profil);
         }
 
-        // Simpan file baru ke folder public/storage/avatars
+        // Store new file to public/storage/avatars
         $path = $request->file('foto_profil')->store('avatars', 'public');
 
-        // Update data kolom model instance
+        // Update model column instance
         $user->foto_profil = $path;
         $user->save();
 
-        return redirect()->route('pendaftaran.index')->with('success', 'Foto profil anggota berhasil diperbarui!');
+        // English success message synced with Blade Alert
+        return redirect()->route('pendaftaran.index')->with('success', 'Member profile picture has been successfully updated!');
     }
 
-    // ==================== INJEKSI FITUR ENTERPRISE: CETAK KARTU ANGGOTA ====================
-    // Menampilkan halaman render kartu perpustakaan fisik beserta barcode dinamis
+    // Render physical library card view with custom barcodes/QR codes
     public function cetakKartu($id)
     {
-        // Ambil data user secara spesifik berdasarkan blueprint primary key id_user lu
+        // Fetch specific user data using blueprint primary key id_user
         $member = User::where('id_user', $id)->firstOrFail();
         
         return view('admin.pendaftaran.cetak_card', compact('member'));

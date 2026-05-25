@@ -121,9 +121,50 @@
         border: 1px solid #e2e8f0;
         background-color: #f1f5f9;
     }
+
+    /* Premium Notification System Design */
+    .custom-alert {
+        border: 1px solid transparent;
+        padding: 12px 16px;
+        font-size: 9.5pt;
+    }
+    .custom-alert-success {
+        background-color: #e6f4ea !important;
+        color: #137333 !important;
+        border-color: rgba(19, 115, 51, 0.1) !important;
+    }
+    .custom-alert-danger {
+        background-color: #fce8e6 !important;
+        color: #c5221f !important;
+        border-color: rgba(197, 34, 31, 0.1) !important;
+    }
 </style>
 
 <div class="container-fluid p-0 animate__animated animate__fadeIn">
+    
+    @if(session('success'))
+        <div class="alert custom-alert custom-alert-success alert-dismissible fade show border-0 shadow-sm rounded-4 mb-4 d-flex align-items-center justify-content-between" role="alert">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fa-solid fa-circle-check fs-6"></i>
+                <div>
+                    <strong>Success!</strong> {{ session('success') }}
+                </div>
+            </div>
+            <button type="button" class="btn-close position-static p-0 m-0 ms-2" data-bs-dismiss="alert" aria-label="Close" style="font-size: 7.5pt; opacity: 0.6;"></button>
+        </div>
+    @endif
+
+    @if(session('error') || $errors->any())
+        <div class="alert custom-alert custom-alert-danger alert-dismissible fade show border-0 shadow-sm rounded-4 mb-4 d-flex align-items-center justify-content-between" role="alert">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fa-solid fa-circle-exclamation fs-6"></i>
+                <div>
+                    <strong>Error!</strong> {{ session('error') ?? 'Validation failed. Please verify your input data.' }}
+                </div>
+            </div>
+            <button type="button" class="btn-close position-static p-0 m-0 ms-2" data-bs-dismiss="alert" aria-label="Close" style="font-size: 7.5pt; opacity: 0.6;"></button>
+        </div>
+    @endif
     
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -303,7 +344,7 @@
                                                     <span>Print Card</span>
                                                 </a>
                                                 
-                                                <button type="button" class="btn-action-pill btn-upload-photo-prime" onclick="triggerPhotoUpload('{{ $member->id_user ?? $member->id }}')">
+                                                <button type="button" class="btn-action-pill btn-upload-photo-prime btn-upload-trigger" onclick="triggerPhotoUpload('{{ $member->id_user ?? $member->id }}')">
                                                     <i class="fa-solid fa-camera"></i>
                                                     <span>Photo</span>
                                                 </button>
@@ -335,19 +376,55 @@
 </div>
 
 <script>
-    // FIX 4: JAVASCRIPT BRIDGING UNTUK MENEMBAK INPUT FILE TERSEMBUNYI SECARA DINAMIS
     function triggerPhotoUpload(userId) {
         document.getElementById('globalAvatarUserId').value = userId;
         document.getElementById('globalAvatarInput').click();
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        // Password Matching Validator
         const pass = document.getElementById('password');
         const confirmPass = document.getElementById('password_confirmation');
         const feedback = document.getElementById('password_feedback');
         const submitBtn = document.getElementById('btnDaftar');
+        const formPendaftaran = document.getElementById('formPendaftaran');
+        const globalAvatarForm = document.getElementById('globalAvatarForm');
+        const globalAvatarInput = document.getElementById('globalAvatarInput');
 
+        // 1. DYNAMIC SUBMIT PROTECTION: Form Register Member
+        formPendaftaran.addEventListener('submit', function() {
+            submitBtn.setAttribute('disabled', 'true');
+            submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i> Registering...`;
+        });
+
+        // 2. DYNAMIC SUBMIT PROTECTION: Row Avatar Table Upload
+        globalAvatarInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                // Find active active button that triggered the upload and change layout into loading state
+                const currentUserId = document.getElementById('globalAvatarUserId').value;
+                const triggers = document.querySelectorAll('.btn-upload-trigger');
+                
+                triggers.forEach(btn => {
+                    if (btn.getAttribute('onclick').includes(currentUserId)) {
+                        btn.setAttribute('disabled', 'true');
+                        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Saving...</span>`;
+                    }
+                });
+                
+                globalAvatarForm.submit();
+            }
+        });
+
+        // Automatically fade out alerts after 5 seconds to retain minimalist feel
+        setTimeout(function() {
+            let alertElement = document.querySelector('.alert');
+            if (alertElement) {
+                alertElement.classList.remove('show');
+                alertElement.classList.add('hide');
+                setTimeout(() => alertElement.remove(), 300);
+            }
+        }, 5000);
+
+        // Password Matching Validator
         function validatePassword() {
             if (confirmPass.value === '') {
                 feedback.className = "d-none";

@@ -156,30 +156,49 @@
         </div>
 
         <div class="col-md-4">
-            <div class="card border-0 shadow-sm rounded-4 p-4 h-100 glass-card">
+            <div class="card border-0 shadow-sm rounded-4 p-4 h-100 glass-card" style="max-height: 410px; overflow-y: auto;">
                 <h6 class="fw-bold mb-4 text-dark">Recent Activities</h6>
 
-                <div class="d-flex mb-3.5 align-items-start animate__animated animate__fadeIn">
-                    <div class="me-3 text-success fs-5 mt-0.5">
-                        <i class="fa-solid fa-circle-check"></i>
+                @forelse($recentActivities ?? [] as $activity)
+                    <div class="d-flex align-items-start animate__animated animate__fadeIn mb-3">
+                        @if($activity->status_peminjaman === 'kembali')
+                            <div class="me-3 text-success fs-5 mt-0.5">
+                                <i class="fa-solid fa-circle-check"></i>
+                            </div>
+                            <div class="w-100">
+                                <div class="text-dark" style="font-size: 9pt; line-height: 1.4;">
+                                    <strong>{{ $activity->user->name ?? 'Member' }}</strong> returned "<em>{{ Str::limit(optional(optional($activity->details->first())->buku)->judul ?? 'Book Item', 25) }}</em>"
+                                </div>
+                                @if($activity->denda > 0)
+                                    <span class="badge bg-danger-subtle text-danger border-0 mt-1 font-monospace" style="font-size: 7pt; padding: 2px 6px; background-color: #fce8e6 !important;">
+                                        Fine: Rp {{ number_format($activity->denda) }}
+                                    </span>
+                                @endif
+                        @else
+                            <div class="me-3 text-warning fs-5 mt-0.5">
+                                <i class="fa-solid fa-clock"></i>
+                            </div>
+                            <div class="w-100">
+                                <div class="text-dark" style="font-size: 9pt; line-height: 1.4;">
+                                    <strong>{{ $activity->user->name ?? 'Member' }}</strong> borrowed "<em>{{ Str::limit(optional(optional($activity->details->first())->buku)->judul ?? 'Book Item', 25) }}</em>"
+                                </div>
+                        @endif
+                                <small class="text-muted d-block mt-1 font-monospace" style="font-size: 7.5pt;">
+                                    <i class="fa-regular fa-clock me-1"></i>
+                                    {{ $activity->updated_at ? $activity->updated_at->diffForHumans() : 'Just now' }}
+                                </small>
+                            </div>
                     </div>
-                    <div>
-                        <div class="fw-semibold text-dark" style="font-size: 9.5pt;">Book returned successfully</div>
-                        <small class="text-muted d-block mt-0.5" style="font-size: 8pt;"><i class="fa-regular fa-clock me-1"></i>2 minutes ago</small>
-                    </div>
-                </div>
 
-                <hr class="my-3 opacity-5" style="border-color: #0f172a;">
-
-                <div class="d-flex mb-3.5 align-items-start animate__animated animate__fadeIn">
-                    <div class="me-3 text-warning fs-5 mt-0.5">
-                        <i class="fa-solid fa-clock"></i>
+                    @if(!$loop->last)
+                        <hr class="my-2.5 opacity-5" style="border-color: #0f172a;">
+                    @endif
+                @empty
+                    <div class="text-center py-5 text-muted my-auto">
+                        <i class="fa-solid fa-timeline fs-4 d-block mb-2 opacity-25"></i>
+                        <small style="font-size: 8.5pt;">No recent system transactions found.</small>
                     </div>
-                    <div>
-                        <div class="fw-semibold text-dark" style="font-size: 9.5pt;">3 overdue books detected</div>
-                        <small class="text-muted d-block mt-0.5" style="font-size: 8pt;"><i class="fa-regular fa-clock me-1"></i>10 minutes ago</small>
-                    </div>
-                </div>
+                @endforelse
             </div>
         </div>
     </div>
@@ -239,13 +258,12 @@
 
     const ctx = document.getElementById('bukuTerlarisChart').getContext('2d');
 
-    // Refined Monochromatic Gradient Palette (Fokus Aksen Utama Hijau BIBLIORA)
     const gradientColors = ctx.createLinearGradient(0, 0, 0, 300);
-    gradientColors.addColorStop(0, 'rgba(56, 176, 0, 0.85)'); // Primary Accent Solid
-    gradientColors.addColorStop(1, 'rgba(56, 176, 0, 0.05)'); // Soft Minimal fading
+    gradientColors.addColorStop(0, 'rgba(56, 176, 0, 0.85)'); 
+    gradientColors.addColorStop(1, 'rgba(56, 176, 0, 0.05)'); 
 
     new Chart(ctx, {
-        type: 'bar', // Menggunakan bar modern dengan lengkungan premium
+        type: 'bar', 
         data: {
             labels: labelsData,
             datasets: [{
@@ -254,17 +272,17 @@
                 backgroundColor: gradientColors,
                 borderColor: '#38b000',
                 borderWidth: 2,
-                borderRadius: 8, // Smooth rounded edges
+                borderRadius: 8, 
                 borderSkipped: false,
                 hoverBackgroundColor: '#38b000',
-                shadowColor: 'rgba(56, 176, 0, 0.3)', // Premium canvas shadow placement
+                shadowColor: 'rgba(56, 176, 0, 0.3)', 
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             animation: {
-                duration: 1500, // Smooth execution delay
+                duration: 1500, 
                 easing: 'easeInOutQuart'
             },
             scales: {
@@ -287,7 +305,7 @@
                 }
             },
             plugins: {
-                legend: { display: false }, // Clean header structure without unnecessary boxes
+                legend: { display: false }, 
                 tooltip: {
                     backgroundColor: '#0f172a',
                     titleFont: { family: 'Inter', size: 12, weight: 'bold' },
@@ -300,4 +318,4 @@
         }
     });
 </script>
-@endsection 
+@endsection

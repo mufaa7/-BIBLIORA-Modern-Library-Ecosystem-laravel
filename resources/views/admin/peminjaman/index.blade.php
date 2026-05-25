@@ -38,7 +38,6 @@
         padding-top: 16px !important;
         padding-bottom: 16px !important;
         color: #334155;
-        /* FIX TOTAL: Kunci semua teks baris agar memanjang kesamping, anti patah bawah */
         white-space: nowrap; 
     }
     .table th {
@@ -51,15 +50,13 @@
         white-space: nowrap;
     }
 
-    /* FIX RESPONSIVE HORIZONTAL SCROLLBAR ARCHITECTURE */
     .table-responsive {
         max-height: 520px;
         overflow-y: auto;
-        overflow-x: auto; /* Aktifkan scrollbar horizontal premium */
+        overflow-x: auto;
         -webkit-overflow-scrolling: touch;
     }
     
-    /* Paksa tabel sirkulasi mempertahankan lebar ideal agar cell di dalamnya bisa digeser kesamping */
     #circulationTable {
         min-width: 1000px !important; 
     }
@@ -72,7 +69,6 @@
         box-shadow: inset 0 -1px 0 #e2e8f0;
     }
 
-    /* Minimalist Action Buttons */
     .btn-action-desk {
         font-size: 8pt;
         font-weight: 600;
@@ -81,7 +77,6 @@
         transition: all 0.2s ease;
     }
 
-    /* Real 3:4 Aspect Ratio Book Cover Thumbnail */
     .book-thumb {
         width: 38px;
         height: 52px;
@@ -90,7 +85,6 @@
         border: 1px solid #e2e8f0;
     }
 
-    /* SKELETON LOADING ANIMATION EFFECT */
     .skeleton-loader {
         width: 100%;
         height: 38px;
@@ -103,7 +97,6 @@
         100% { background-position: -200% 0; }
     }
 
-    /* Glassmorphism Framework Wrapper */
     .glass-card {
         background: rgba(255, 255, 255, 0.8) !important;
         backdrop-filter: blur(8px);
@@ -111,13 +104,13 @@
         border: 1px solid rgba(241, 245, 249, 0.8) !important;
     }
 
-    /* Dynamic Multi-Book Input Row Design */
     .buku-item-row {
         background-color: #f8fafc !important;
         border: 1px solid #f1f5f9 !important;
     }
 </style>
 
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -138,9 +131,9 @@
             <div class="card bg-white border-0 shadow-sm p-3 border-start border-4 rounded-3" style="border-left-color: #00b4d8 !important;">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
-                        <span class="text-muted small fw-medium" style="font-size: 8.5pt;">Active Loans</span>
+                        <span class="text-muted small fw-medium" style="font-size: 8.5pt;">Active Loans / Booking</span>
                         <h4 class="fw-bold text-dark mt-1 mb-0">
-                            {{ $peminjamans->where('status_peminjaman', 'dipinjam')->count() }} <span class="text-muted fw-normal" style="font-size: 9pt;">active</span>
+                            {{ $peminjamans->whereIn('status_peminjaman', ['dipinjam', 'booking'])->count() }} <span class="text-muted fw-normal" style="font-size: 9pt;">active</span>
                         </h4>
                     </div>
                     <div class="fs-5 opacity-70" style="color: #00b4d8;"><i class="fa-solid fa-retweet"></i></div>
@@ -172,8 +165,20 @@
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <span class="text-muted small fw-medium" style="font-size: 8.5pt;">Unpaid Fine Ledger</span>
+                        @php
+                            $totalDendaBelumLunasDiDB = $peminjamans->where('status_peminjaman', 'kembali')->sum('denda');
+                            $totalDendaBerjalanDiMemori = 0;
+                            
+                            foreach($peminjamans->where('status_peminjaman', 'dipinjam') as $item) {
+                                if(\Carbon\Carbon::today()->gt(\Carbon\Carbon::parse($item->jatuh_tempo))) {
+                                    $hari = \Carbon\Carbon::today()->diffInDays(\Carbon\Carbon::parse($item->jatuh_tempo));
+                                    $buku = $item->details->sum('jumlah');
+                                    $totalDendaBerjalanDiMemori += ($hari * 1000 * $buku);
+                                }
+                            }
+                        @endphp
                         <h4 class="fw-bold text-dark mt-1 mb-0" style="color: #d97706 !important;">
-                            Rp {{ number_format($peminjamans->where('status_peminjaman', 'dipinjam')->sum('denda') + $peminjamans->where('status_peminjaman', 'kembali')->sum('denda')) }}
+                            Rp {{ number_format($totalDendaBelumLunasDiDB + $totalDendaBerjalanDiMemori) }}
                         </h4>
                     </div>
                     <div class="fs-5 opacity-70" style="color: #ffb703;"><i class="fa-solid fa-money-bill-wave"></i></div>
@@ -186,7 +191,7 @@
         <div class="col-lg-5 col-xl-4">
             <div class="card bg-white border-0 shadow-sm rounded-4 card-form">
                 <div class="card-header bg-white border-0 fw-bold pt-4 pb-2 text-dark d-flex align-items-center" style="font-size: 11pt;">
-                    <i class="fa-solid fa-plus me-2 text-muted" style="font-size: 10pt;"></i> New Loan
+                    <i class="fa-solid fa-plus me-2 text-muted" style="font-size: 10pt;"></i> New Loan (Offline)
                 </div>
                 <div class="card-body pt-0">
                     <form action="{{ route('peminjaman.store') }}" method="POST" id="formPeminjaman">
@@ -273,7 +278,7 @@
                                     <th style="width: 170px;">Timeline</th>
                                     <th style="width: 110px;">Status</th>
                                     <th style="width: 130px;">Fines</th>
-                                    <th class="text-center" style="width: 130px;">Actions</th>
+                                    <th class="text-center" style="width: 160px;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -299,7 +304,7 @@
                                                             <i class="fa-solid fa-book" style="font-size: 10pt;"></i>
                                                         </div>
                                                         <div>
-                                                            <div class="fw-semibold text-dark" style="font-size: 9pt; line-height: 1.2;">{{ $detail->buku->judul }}</div>
+                                                            <div class="fw-semibold text-dark" style="font-size: 9pt; line-height: 1.2;">{{ $detail->buku->judul ?? 'Deleted Book Data' }}</div>
                                                             <small class="text-muted" style="font-size: 8pt;">{{ $detail->jumlah }} volume</small>
                                                         </div>
                                                     </div>
@@ -308,33 +313,59 @@
                                         </td>
                                         
                                         <td>
-                                            <div style="font-size: 8.5pt;">Issued: <span class="text-secondary fw-medium">{{ \Carbon\Carbon::parse($pinjam->tanggal_pinjam)->translatedFormat('d M Y') }}</span></div>
-                                            <div class="mt-0.5" style="font-size: 8.5pt;">Due: <span class="text-danger fw-medium">{{ \Carbon\Carbon::parse($pinjam->jatuh_tempo)->translatedFormat('d M Y') }}</span></div>
+                                            @if($pinjam->status_peminjaman === 'booking')
+                                                <div style="font-size: 8.5pt;" class="text-info fw-semibold"><i class="fa-solid fa-hourglass-start me-1"></i> Pre-ordered Slot</div>
+                                                <small class="text-muted" style="font-size: 8pt;">Hold expiry: 24 Hours</small>
+                                            @else
+                                                <div style="font-size: 8.5pt;">Issued: <span class="text-secondary fw-medium">{{ \Carbon\Carbon::parse($pinjam->tanggal_pinjam)->translatedFormat('d M Y') }}</span></div>
+                                                <div class="mt-0.5" style="font-size: 8.5pt;">Due: <span class="text-danger fw-medium">{{ \Carbon\Carbon::parse($pinjam->jatuh_tempo)->translatedFormat('d M Y') }}</span></div>
+                                            @endif
+                                        </td>
+                                        
+                                        <td>
+                                            @if($pinjam->status_peminjaman === 'booking')
+                                                <span class="badge rounded-pill px-2.5 py-1.5 fw-semibold" style="background-color: #e0f2fe; color: #0369a1; font-size: 7.5pt;">Booking</span>
+                                            @elseif($pinjam->status_peminjaman === 'dipinjam')
+                                                @if(\Carbon\Carbon::today()->gt(\Carbon\Carbon::parse($pinjam->jatuh_tempo)))
+                                                    <span class="badge rounded-pill px-2.5 py-1.5 fw-semibold" style="background-color: #fce8e6; color: #c5221f; font-size: 7.5pt;">Overdue</span>
+                                                @else
+                                                    <span class="badge rounded-pill px-2.5 py-1.5 fw-semibold" style="background-color: #fef3c7; color: #d97706; font-size: 7.5pt;">On loan</span>
+                                                @endif
+                                            @elseif($pinjam->status_peminjaman === 'kembali')
+                                                <span class="badge rounded-pill px-2.5 py-1.5 fw-semibold" style="background-color: #dbeafe; color: #1e40af; font-size: 7.5pt;">Returned</span>
+                                            @else
+                                                <span class="badge rounded-pill px-2.5 py-1.5 fw-semibold" style="background-color: #e6f4ea; color: #137333; font-size: 7.5pt;">Settled</span>
+                                            @endif
                                         </td>
                                         
                                         <td>
                                             @if($pinjam->status_peminjaman === 'dipinjam')
                                                 @if(\Carbon\Carbon::today()->gt(\Carbon\Carbon::parse($pinjam->jatuh_tempo)))
-                                                    <span class="badge rounded-pill px-2.5 py-1.5 fw-semibold" style="background-color: #fce8e6; color: #c5221f; font-size: 7.5pt;">
-                                                        Overdue
-                                                    </span>
+                                                    @php
+                                                        $hariTerlambat = \Carbon\Carbon::today()->diffInDays(\Carbon\Carbon::parse($pinjam->jatuh_tempo));
+                                                        $totalBuku = $pinjam->details->sum('jumlah');
+                                                        $dendaBerjalan = $hariTerlambat * 1000 * $totalBuku;
+                                                    @endphp
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span class="text-danger fw-bold" style="font-size: 9.5pt;">Rp {{ number_format($dendaBerjalan) }}</span>
+                                                        <span class="badge bg-warning text-dark font-monospace" style="font-size: 6.5pt; padding: 2px 6px;">running</span>
+                                                    </div>
                                                 @else
-                                                    <span class="badge rounded-pill px-2.5 py-1.5 fw-semibold" style="background-color: #fef3c7; color: #d97706; font-size: 7.5pt;">On loan</span>
+                                                    <span class="text-muted opacity-30">—</span>
                                                 @endif
                                             @else
-                                                <span class="badge rounded-pill px-2.5 py-1.5 fw-semibold" style="background-color: #e6f4ea; color: #137333; font-size: 7.5pt;">Returned</span>
-                                            @endif
-                                        </td>
-                                        
-                                        <td>
-                                            @if($pinjam->denda > 0)
-                                                <div class="d-flex align-items-center gap-2">
-                                                    <span class="text-danger fw-bold" style="font-size: 9.5pt;">Rp {{ number_format($pinjam->denda) }}</span>
-                                                    <span class="badge bg-danger-subtle text-danger font-monospace" style="font-size: 7pt; padding: 2px 6px;">unpaid</span>
-                                                </div>
-                                            @else
-                                                @if($pinjam->status_peminjaman === 'kembali' && $pinjam->tanggal_kembali != null)
-                                                    <span class="text-success small fw-semibold"><i class="fa-solid fa-circle-check me-1"></i>Paid</span>
+                                                @if($pinjam->denda > 0)
+                                                    @if($pinjam->status_peminjaman === 'lunas')
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <span class="text-success fw-bold" style="font-size: 9.5pt;">Rp {{ number_format($pinjam->denda) }}</span>
+                                                            <span class="badge bg-success-subtle text-success font-monospace" style="font-size: 7pt; padding: 2px 6px;">paid</span>
+                                                        </div>
+                                                    @else
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <span class="text-danger fw-bold" style="font-size: 9.5pt;">Rp {{ number_format($pinjam->denda) }}</span>
+                                                            <span class="badge bg-danger-subtle text-danger font-monospace" style="font-size: 7pt; padding: 2px 6px;">unpaid</span>
+                                                        </div>
+                                                    @endif
                                                 @else
                                                     <span class="text-muted opacity-30">—</span>
                                                 @endif
@@ -342,7 +373,19 @@
                                         </td>
 
                                         <td class="text-center">
-                                            @if($pinjam->status_peminjaman === 'dipinjam')
+                                            @if($pinjam->status_peminjaman === 'booking')
+                                                <form action="{{ route('peminjaman.konfirmasi_booking', $pinjam->id_peminjaman) }}" method="POST" class="m-0 d-flex align-items-center gap-1 justify-content-center">
+                                                    @csrf
+                                                    <select name="durasi" class="form-select form-select-sm py-1 border-info text-dark rounded-2" required style="font-size: 8pt; width: 85px; height: 31px;">
+                                                        <option value="1">1 Day</option>
+                                                        <option value="3">3 Days</option>
+                                                        <option value="7" selected>7 Days</option>
+                                                    </select>
+                                                    <button type="button" class="btn btn-sm btn-info btn-action-desk text-white py-1.5 shadow-sm border-0 btn-trigger-issue-dynamic" style="background-color: #0284c7; height: 31px;">
+                                                        <i class="fa-solid fa-hand-holding-open me-1"></i> Issue
+                                                    </button>
+                                                </form>
+                                            @elseif($pinjam->status_peminjaman === 'dipinjam')
                                                 <div class="d-flex align-items-center gap-1.5 justify-content-center">
                                                     <form action="{{ route('peminjaman.kembalikan', $pinjam->id_peminjaman) }}" method="POST" class="m-0 form-confirm-return">
                                                         @csrf
@@ -355,7 +398,7 @@
                                                 </div>
                                             @else
                                                 <div class="d-flex align-items-center gap-2 justify-content-center">
-                                                    @if($pinjam->denda > 0)
+                                                    @if($pinjam->status_peminjaman === 'kembali' && $pinjam->denda > 0)
                                                         <form action="{{ route('peminjaman.bayar_denda', $pinjam->id_peminjaman) }}" method="POST" class="m-0 form-confirm-pay">
                                                             @csrf
                                                             <button type="button" class="btn btn-sm btn-warning text-dark btn-action-desk py-1.5 border-0 shadow-sm btn-trigger-pay" style="background-color: #ffb703;">
@@ -401,12 +444,12 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         
-        // AJAX INPUT TOKEN ENTRY DETECTOR WITH SHIMMER SKELETON LOADING
         const idUserInput = document.getElementById('id_user_input');
         const nameField = document.getElementById('nama_user_readonly');
         const skeletonBox = document.getElementById('skeleton_container');
         const submitBtn = document.getElementById('btn_submit_transaksi');
 
+        // Engine AJAX Live Checker Member Token
         idUserInput.addEventListener('input', function() {
             let idUser = this.value;
 
@@ -451,7 +494,29 @@
                 });
         });
 
-        // SWEETALERT2 INTEGRATION
+        // SWEETALERT2 BARU: Membaca pilihan durasi pinjam dari select-option dinamis
+        document.querySelectorAll('.btn-trigger-issue-dynamic').forEach(button => {
+            button.addEventListener('click', function() {
+                const parentForm = this.closest('form');
+                const durasiTerpilih = parentForm.querySelector('select[name="durasi"]').value;
+                
+                Swal.fire({
+                    title: 'Validate & Issue Book?',
+                    text: `Confirm loan validation for ${durasiTerpilih} day(s). Make sure book items have been physically handed over to the student.`,
+                    icon: 'info',
+                    showCancelButton: true,
+                    confirmButtonColor: '#0284c7',
+                    cancelButtonColor: '#64748b',
+                    confirmButtonText: 'Yes, Issue Book'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        parentForm.submit();
+                    }
+                });
+            });
+        });
+
+        // SweetAlert2: Konfirmasi Pengembalian Buku
         document.querySelectorAll('.btn-trigger-return').forEach(button => {
             button.addEventListener('click', function() {
                 const parentForm = this.closest('form');
@@ -471,6 +536,7 @@
             });
         });
 
+        // SweetAlert2: Konfirmasi Pelunasan Denda Tunai
         document.querySelectorAll('.btn-trigger-pay').forEach(button => {
             button.addEventListener('click', function() {
                 const parentForm = this.closest('form');
@@ -481,8 +547,7 @@
                     showCancelButton: true,
                     confirmButtonColor: '#ffb703',
                     cancelButtonColor: '#64748b',
-                    confirmButtonText: 'Yes, cash received',
-                    textColor: '#0f172a'
+                    confirmButtonText: 'Yes, cash received'
                 }).then((result) => {
                     if (result.isConfirmed) {
                         parentForm.submit();
@@ -491,7 +556,7 @@
             });
         });
 
-        // LIVE SEARCH INTERACTIVE ROW AGENT WITH EMPTY STATE NOTIFIER
+        // Live JavaScript Search Filter Data Transaksi
         const searchInput = document.getElementById('searchCirculationInput');
         const rows = document.querySelectorAll('.circulation-row');
         const emptySearchRow = document.getElementById('emptySearchRow');
@@ -522,14 +587,13 @@
             }
         });
 
-        // TRANSITION CONTROL FOR MULTI-BUKU DYNAMIC FIELDS
+        // Dynamic Form Form Multi-Buku Offline (Max 3 Items)
         const container = document.getElementById('bukuDynamicContainer');
         const btnTambah = document.getElementById('btnTambahBuku');
         const templateRow = container.querySelector('.buku-item-row').cloneNode(true);
         
         const trashBtn = templateRow.querySelector('.btn-remove-row');
         trashBtn.removeAttribute('disabled');
-        trashBtn.classList.remove('opacity-25');
 
         function evaluateLimit() {
             const currentRows = container.querySelectorAll('.buku-item-row');
