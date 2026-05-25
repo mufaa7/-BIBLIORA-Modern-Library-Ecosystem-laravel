@@ -1,66 +1,62 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Bibliora - Library Ecosystem
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Bibliora adalah sistem manajemen perpustakaan yang dibangun untuk mengotomatisasi pendataan buku, sirkulasi peminjaman, hingga sistem denda secara akurat. Sistem ini dirancang untuk memastikan operasional perpustakaan berjalan transparan dan efisien, baik bagi admin maupun anggota.
 
-## About Laravel
+##  Preview
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+**Dashboard Admin**
+![Admin Dashboard](docs/images/admin_dashboard.png)
+![Admin Circulation](docs/images/admin_circ.png)
+![Cetak Kartu](docs/images/cetak_kartu.png)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+**Dashboard Anggota**
+![Member Dashboard](docs/images/member_dashboard.png)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+##  Alur Kerja
 
-## Learning Laravel
+1. **Sirkulasi:** Peminjaman dapat dilakukan via _booking_ mandiri oleh anggota (menunggu persetujuan admin) atau transaksi langsung di tempat oleh admin.
+2. **Proses:** Sistem mencatat masa pinjam secara otomatis saat buku diserahkan.
+3. **Pengembalian:** Pengembalian buku dan penyelesaian denda (jika ada keterlambatan) dilakukan melalui dasbor admin.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+##  Fungsi Utama
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+- **Sistem Keamanan Proaktif:** Pengecekan status _blacklist_ anggota secara _real-time_ saat admin melakukan transaksi (mencegah anggota bermasalah melakukan pinjaman).
+- **Verifikasi Publik:** Fitur validasi struk peminjaman via QR-Code yang dapat diakses publik tanpa login, menjamin transparansi data transaksi.
+- **Otomatisasi Sirkulasi:** Mendukung dua skenario: _booking_ mandiri atau transaksi _walk-in_ oleh admin.
+- **Perpanjangan Mandiri:** Anggota dapat memperpanjang masa pinjam buku sendiri (batas 1x per transaksi) untuk efisiensi admin.
+- **Manajemen Denda:** Perhitungan denda otomatis berbasis durasi keterlambatan.
+- **Antarmuka Interaktif:** Pembaruan data anggota (seperti foto profil) via AJAX untuk alur kerja cepat tanpa harus _page reload_.
+- **Quota Management:** Pengaturan batasan jumlah buku (3 buku) guna menjaga ketersediaan inventaris.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## 🛠 Teknologi
 
-## Laravel Sponsors
+- **Framework:** Laravel 10
+- **Database:** MySQL
+- **Frontend:** Bootstrap 5, SweetAlert2
+- **Logic:** Carbon (Date-time math & business logic)
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## ⚙️ Cara Menjalankan
 
-### Premium Partners
+1. `git clone https://github.com/mufaa7/Bibliora-Modern-Library-Ecosystem-laravel.git`
+2. `cp .env.example .env`
+3. `composer install`
+4. `php artisan migrate`
+5. `php artisan serve`
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+## 📄 Lisensi
 
-## Contributing
+MIT License.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+### 📬 Kontak
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Jika ada pertanyaan atau ingin berdiskusi lebih lanjut:
 
-## Security Vulnerabilities
+- **Email:** [mufarhan022@gmail.com](mailto:mufarhan022@gmail.com)
+- **LinkedIn:** [Muhammad Farhan Fadholi](https://www.linkedin.com/in/muhammad-farhan-fadholi-4167b627a)
+- **Instagram:** [@mufaa.f](https://www.instagram.com/mufaa.f)
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+---
 
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+_Developed by Muhammad Farhan Fadholi_
